@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<head>
+    <meta http-equiv= "Content-Type" content="text/html; charset=utf-8" >
+    <title>FirstBaiduMap</title>
+    <style type="text/css">
+        html{height:100%}
+        body{height:100%;margin:0px;
+            padding: 0px;}
+        #container1{
+            height: 80%;
+            width: 100%;
+            display: block;
+        }
+
+        #location{
+            border: 1px solid yellow;
+            height: 25%;
+            width: 80%;
+            text-align: center;
+            margin:0px auto;
+        }
+        #form1{
+            border: 0px slategray;
+            height: 100%;
+            width: 100%;
+            text-align: center;
+            float: left;
+            /*background-color: #36a5bc;*/
+        }
+        #stationtable{
+            height: 100%;
+            width: 100%;
+            float: top;
+        }
+        /*        #repaint{
+                    height: 5%;
+                    margin-top: 10%;
+                    margin-left: 20%;
+                    float: left;
+                }*/
+
+        #form{
+            height: 90%;
+            width: 90%;
+
+            background-color: #36a5bc;
+            overflow-y: auto;
+            margin-top: 5%;
+            margin-right: 5%;
+            margin-left: 5%;
+        }
+
+        #search{
+            right: 90%;
+        }
+        #info{
+
+            margin-right: 2%;
+            margin-top: 1%;
+
+            float: right;
+            height: 95%;
+            width: 35%;
+            background-color: grey;
+
+        }
+        #map{
+
+            margin-left: 1%;
+            margin-top: 1%;
+
+            height: 95%;
+            width: 60%;
+            float: left;
+            background-color: beige;
+        }
+        #filter{
+            height: 3%;
+            width: 100%;
+            float: left;
+            text-align: center;
+        }
+
+        #center_lng{
+            width: 20%;
+        }
+        #center_lat{
+            width: 20%;
+        }
+        #radius{
+            width: 30%;
+        }
+        #left_lng{
+            width: 20%;
+        }
+        #right_lng{
+            width: 20%;
+        }
+        #left_lat{
+            width: 20%;
+        }
+        #right_lat{
+            width: 20%;
+        }
+        .anchorBL{display:none;}
+
+    </style>
+</head>
+<body>
+<div id="container1">
+    <div id = "filter">
+        <p>
+            <label for="hobby">筛选条件：
+                <input type="button" name="selectAll" value="全选" onclick="selectAllItem()" />  
+                <input type="button" name="deleteAll" value="全不选" onclick="deleteAllItem()" />  
+                <input type="button" name="selectOther" value="反选" onclick="selectOtherItem()" />
+                <input type="checkbox" name="hobby" value="2" checked = "checked"/>形变  
+                <input type="checkbox" name="hobby" value="3" checked/>地电地磁  
+                <input type="checkbox" name="hobby" value="4" checked/>地下流体  
+                <input type="checkbox" name="hobby" value="9" checked/>辅助流体  
+                <input type="button" value="确认重选" onclick="SelectedItem()" />
+            </label>
+        </p>
+    </div>
+    <div id = "map"></div>
+    <div id = "info">
+        <!--<p style="height:2%;width: 100%;position: relative; ">所选范围</p>-->
+        <!--<div id="location" ></div>-->
+        <div id = "form1" >
+            <div id = "form">
+                <table id = "stationtable">
+                    <thead>
+                    <!-- 创建表格头 -->
+                    <tr id="list">
+                        <th>选中</th>
+                        <th>所属区域</th>
+                        <th>所属台站</th>
+                        <th>测点编码</th>
+                        <th>仪器名称</th>
+                        <th>测项名称</th>
+                    </tr>
+                    <!-- 添加全部删除按钮， -->
+                    <tr>
+                        <td ><input type="checkbox" onclick="checkAll(this)" />全选</td>
+                        <td ><input type="button" id="repaint" value="重新画图" onclick="delAll()"></td>
+                    </tr>
+                    </thead>
+                    <tbody id="listbody"></tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+</body>
+</html>
+<script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=QdBM7rdKg2NgCeYbfDf5byPAjTlERdcw"></script>
+<script type="text/javascript" src="http://api.map.baidu.com/library/DrawingManager/1.4/src/DrawingManager_min.js"></script>
+<script type="text/javascript" src="http://api.map.baidu.com/library/TextIconOverlay/1.2/src/TextIconOverlay_min.js"></script>
+<script type="text/javascript" src="http://api.map.baidu.com/library/MarkerClusterer/1.2/src/MarkerClusterer_min.js"></script>
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+<script type="text/javascript" src="js/mapv.js"></script>
+<link rel="stylesheet" href="http://api.map.baidu.com/library/DrawingManager/1.4/src/DrawingManager_min.css" />
+
+<script type="text/javascript" >
+
+    function getdata() {
+        $.ajax({
+            url: "rest/STA/station",
+            type: "GET",
+            //dataType: "json",
+            success: function (data) {
+                if (document.createElement('canvas').getContext) {
+                    for (var i = 0; i < data.length; i++) {
+                        point = new BMap.Point(data[i].longitude, data[i].latitude);
+                        point.stationName = data[i].stationName;
+                        point.stationId = data[i].stationId;
+                        points.push(point);
+                    }
+                    //海量画点 PointCollection类
+
+                    var shape_opts = {
+                        shape: BMAP_POINT_SHAPE_WATERDROP,
+                    }
+                    var pointCollection = new BMap.PointCollection(points, shape_opts);  // 初始化PointCollection
+                    pointCollection.addEventListener('click', function (e) {
+                        var p = e.point;
+                        var point = new BMap.Point(p.lng, p.lat);
+                        var opts = {
+                            width: 100, // 信息窗口宽度
+                            height: 80, // 信息窗口高度
+                            title: "台站信息", // 信息窗口标题
+                            enableMessage: false,//设置允许信息窗发送短息
+                        }
+
+                        //点击台站点显示提示框
+                        var infowindow = new BMap.InfoWindow("台站名称:" + p.stationName.split("-")[0] + "<br/>台站ID:" + p.stationId, opts);
+                        map.openInfoWindow(infowindow, point);
+
+                    });
+
+                    map.addOverlay(pointCollection);  // 添加Overlay
+                } else {
+                    alert("请在chrome、safari、IE8+以上浏览器查看本示例");
+                }
+            },
+            error: function (data) {
+
+                alert('加载台站失败！！！'+data);
+            }
+        });
+    }
+
+
+    // 百度地图API功能
+    var map = new BMap.Map("map",{enableMapClick:false});  //关闭地图底图可点
+    var point = new BMap.Point(113.323685, 23.130522);
+    map.centerAndZoom("兰州",5);
+    map.enableScrollWheelZoom(true); //开启鼠标滚轮缩放
+    map.addControl(new BMap.MapTypeControl());
+    var points=[]
+
+    getdata()
+    //随机生成3000个点测试
+    /*    for (var i = 0; i < 3000; i++) {
+            StationArr.longtitude = sw.lng + lngSpan * (Math.random() * 0.7);
+            StationArr.latitude = ne.lat - latSpan * (Math.random() * 0.7);
+            StationArr.stationID = 10000+i;
+            StationArr.stationName = "台站"+i;
+            allStationArr.push(StationArr);
+            point = new BMap.Point(StationArr.longtitude, StationArr.latitude);
+
+            allPointArray.push({ Point: point, Station: StationArr.stationName });
+            points.push(point)
+
+            //markers.push(point);
+        }
+
+        //点聚和方法画点 markerClusterer类。
+        var markerClusterer = new BMapLib.MarkerClusterer(map, { markers: markerArr });
+
+    */
+
+    var overlays = [];
+    //overlaycomplete的监听事件
+    var overlaycomplete = function (e) {
+        clearAll();
+        overlays.push(e.overlay);
+        e.overlay.enableEditing();
+        // e.overlay.addEventListener("lineupdate", function (e) {
+        //     showLatLon(e.currentTarget);
+        // });
+        var pointArray = e.overlay.getPath();
+        map.setViewport(pointArray); //调整视野
+
+        //显示所画的范围
+        /*        if (e.drawingMode === "circle"){
+                    drawingCircle(e.overlay);
+                } else if (e.drawingMode === "rectangle") {
+                    drawingRectangle(e.overlay);
+                }*/
+
+        var hobbies = document.getElementsByName("hobby");
+        var value;
+        for (i=0; i<hobbies.length; i++){
+            if (hobbies[i].checked){
+                if (!value){
+                    value = hobbies[i].value;
+                } else {
+                    value += "," + hobbies[i].value;
+                }
+            }
+        }
+
+        ShowStation(value);
+
+
+    };
+    var styleOptions = {
+        strokeColor: "blue", //边线颜色。
+        fillColor: "blue", //填充颜色。当参数为空时，圆形将没有填充效果。
+        strokeWeight: 2, //边线的宽度，以像素为单位。
+        strokeOpacity: 0.5, //边线透明度，取值范围0 - 1。
+        fillOpacity: 0.1, //填充的透明度，取值范围0 - 1。
+        strokeStyle: 'solid' //边线的样式，solid或dashed。
+    };
+    //实例化鼠标绘制工具
+    var drawingManager = new BMapLib.DrawingManager(map, {
+        isOpen: false, //是否开启绘制模式
+        enableDrawingTool: true, //是否显示工具栏
+        drawingToolOptions: {
+            anchor: BMAP_ANCHOR_TOP_LEFT, //位置
+            offset: new BMap.Size(5, 5), //偏离值
+            drawingModes: [
+                // BMAP_DRAWING_MARKER,
+                BMAP_DRAWING_CIRCLE,
+                // BMAP_DRAWING_POLYLINE,
+                // BMAP_DRAWING_POLYGON,
+                BMAP_DRAWING_RECTANGLE
+            ]
+        },
+        circleOptions: styleOptions, //圆的样式
+        polylineOptions: styleOptions, //线的样式
+        polygonOptions: styleOptions, //多边形的样式
+        rectangleOptions: styleOptions //矩形的样式
+    });
+    //添加鼠标绘制工具监听事件，用于获取绘制结果
+    drawingManager.addEventListener('overlaycomplete', overlaycomplete);
+
+    //清除
+    function clearAll() {
+        for (var i = 0; i < overlays.length; i++) {
+            map.removeOverlay(overlays[i]);
+            var list = document.getElementById("listbody");
+            //拿到所有的item
+            var items = document.getElementsByName("tableitem");
+            for(var j=0;j<items.length;j++){
+                var tr = items[j].parentNode.parentNode;
+                list.removeChild(tr);
+                j--;
+            }
+        }
+        overlays.length = 0;
+    }
+
+    //显示台站
+    function ShowStation(value) {
+        var box = overlays[overlays.length - 1];
+        var pointArray = box.getPath();
+        //map.setViewport(pointArray); //调整视野
+        var bound = map.getBounds(); //地图可视区域
+        for (var i = 0; i < points.length; i++) {
+            point = new BMap.Point(points[i].lng,points[i].lat);
+
+            if (bound.containsPoint(point) == true) {
+                if (isInsidePolygon(point, pointArray)) {
+                    var tmp_stationId = points[i].stationId
+
+                    // 根据框选的台站ID请求数据库返回该台站的测点和测项
+                    $.ajax({
+                        url: "rest/STA/PointItem",
+                        type: "GET",
+                        data:{
+                            sta: tmp_stationId,
+                        },
+                        success: function (data) {
+                            for (var i=0;i<data.length;i++) {
+
+                                //筛选条件
+                                var itemID = data[i].stationName.split("-")[2];
+                                if (value.indexOf(itemID.substring(0,1))== -1){
+                                    continue
+                                }
+
+                                addStationlist(data[i]);
+
+                                /*                                var mydiv = document.getElementById("form");
+                                                                var box = document.createElement("input");
+                                                                var text = document.createTextNode(data[i].stationName);
+                                                                box.setAttribute("type", "checkbox");
+                                                                box.setAttribute("id", data[i].stationId);
+                                                                box.setAttribute("name", "checkbox1")
+                                                                box.setAttribute("onclick", "checkItem(this)")
+                                                                box.setAttribute("value", data[i].stationName)
+                                                                mydiv.appendChild(box);
+                                                                mydiv.appendChild(text);*/
+                            }
+                        },
+                        error: function (data) {
+
+                            alert('更新台站失败！！！'+data);
+                        }
+                    });
+
+
+                }
+            }
+        }
+    }
+
+    //提交信息
+    function add_info() {
+        var checkbox = document.getElementsByName("checkbox1[]");
+        var checked_value =[]
+        for (var k in checkbox)
+            if (checkbox[k].checked)
+                checked_value.push(checkbox[k].value)
+        alert("添加的的信息为。。。"+checked_value)
+    }
+
+    function drawingCircle(overlay){
+        var center = overlay.getCenter();
+        var radius = overlay.getRadius();
+        document.getElementById("location").innerHTML = "<br>圆点经度:<input type='text' id='center_lng'><br>圆点纬度:<input type='text'id='center_lat'><br>半径:<input id='radius' type='text'>";
+        document.getElementById("center_lng").value = center.lng;
+        document.getElementById("center_lat").value = center.lat;
+        document.getElementById("radius").value = radius;
+    }
+    function drawingRectangle(overlay){
+        var left_down = overlay.getPath()[3];
+        var right_top = overlay.getPath()[1];
+        document.getElementById("location").innerHTML = "<br>左下经度 : <input type='text' id='left_lng'><br>左下纬度 : <input type='text' id='left_lat'><br>右上经度 : <input type='text'id='right_lng'><br>右上纬度 : <input type='text'id='right_lat'>"
+        document.getElementById("left_lng").value =left_down.lng;
+        document.getElementById("left_lat").value =left_down.lat;
+        document.getElementById("right_lng").value =right_top.lng;
+        document.getElementById("right_lat").value =right_top.lat;
+    }
+
+
+
+    //判断一个标注点是否在多边形里
+    //pt标注点，poly多边形数组
+    function isInsidePolygon(pt, poly) {
+        for (var c = false, i = -1, l = poly.length, j = l - 1; ++i < l; j = i)
+            ((poly[i].lat <= pt.lat && pt.lat < poly[j].lat) || (poly[j].lat <= pt.lat && pt.lat < poly[i].lat)) &&
+            (pt.lng < (poly[j].lng - poly[i].lng) * (pt.lat - poly[i].lat) / (poly[j].lat - poly[i].lat) + poly[i].lng) &&
+            (c = !c);
+        return c;
+    }
+</script>
+
+<script type="text/javascript">
+    //过滤条件
+
+    function SelectedItem(){
+        var hobbies = document.getElementsByName("hobby");
+        var value;
+        for (i=0; i<hobbies.length; i++){
+            if (hobbies[i].checked){
+                if (!value){
+                    value = hobbies[i].value;
+                } else {
+                    value += "," + hobbies[i].value;
+                }
+            }
+        }
+
+        alert(value == undefined ? '' : value);
+    }
+
+    function isSelectAll(){
+        var hobbies = document.getElementsByName("hobby");
+        for (i=0; i<hobbies.length; i++){
+            if (!hobbies[i].checked){
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    function selectAllItem(){
+        var hobbies = document.getElementsByName("hobby");
+        if (isSelectAll()){
+            for (i=0; i<hobbies.length; i++){
+                hobbies[i].checked = false;
+            }
+        } else {
+            for (i=0; i<hobbies.length; i++){
+                hobbies[i].checked = true;
+            }
+        }
+    }
+
+    function deleteAllItem() {
+        var hobbies = document.getElementsByName("hobby");
+        for (i = 0; i<hobbies.length; i++){
+            hobbies[i].checked = false;
+        }
+    }
+
+    function selectOtherItem(){
+        var hobbies = document.getElementsByName("hobby");
+        for (i=0; i<hobbies.length; i++){
+            if (hobbies[i].checked){
+                hobbies[i].checked = false;
+            } else {
+                hobbies[i].checked = true;
+            }
+        }
+    }
+</script>
+
+<script type="text/javascript">
+    function addStationlist(data){
+        //获取用户输入
+        var province = data.stationName.split("-")[3];
+        var stationname = data.stationName.split("-")[0];
+        var pointID = data.stationName.split("-")[1];
+        var instrname = data.stationName.split("-")[4];
+        var itemname = data.stationName.split("-")[2];
+
+        //创建一个tr
+        var tr = document.createElement("tr");
+        //创建td
+
+        var td1 = document.createElement("td");
+        var input = document.createElement("input");
+        input.setAttribute("type","checkbox");
+        input.setAttribute("id",data.stationId);
+        input.setAttribute("name","tableitem");
+        input.setAttribute("onclick","checkItem(this)")
+        input.setAttribute("value", data.stationName)
+
+        td1.appendChild(input);
+
+        var td2 = document.createElement("td");
+        td2.innerHTML = province;
+
+        var td3 = document.createElement("td");
+        td3.innerHTML = stationname;
+
+        var td4 = document.createElement("td");
+        td4.innerHTML = pointID;
+
+        var td5 = document.createElement("td");
+        td5.innerHTML = instrname;
+
+        var td6 = document.createElement("td");
+        td6.innerHTML = itemname;
+
+
+        //将创建的td添加到tr中
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+        tr.appendChild(td3);
+        tr.appendChild(td4);
+        tr.appendChild(td5);
+        tr.appendChild(td6);
+
+        //使用appendChild（tr）方法，将tr添加到listbody中
+        //其中获取的listbody是要将表格添加的位置的id
+        var listbody = document.getElementById("listbody");
+        listbody.appendChild(tr);
+
+    }
+
+    //全选
+
+    function checkAll(c){
+        //得到全选按钮的状态
+        var status = c.checked;
+        //得到name=item的标签
+        var items = document.getElementsByName("tableitem");
+        for(var i=0;i<items.length;i++){
+            //将全选按钮的状态给所有的items
+            items[i].checked=status;
+
+        }
+    }
+    //删除选中部分，注意变量，每删除一个，要将变量减一，否则，将导致变量溢出，浏览器死机
+    function delAll(){
+
+        var list = document.getElementById("listbody");
+        //拿到所有的item
+        var items = document.getElementsByName("tableitem");
+        for(var j=0;j<items.length;j++){
+
+            var tr = items[j].parentNode.parentNode;
+            list.removeChild(tr);
+            j--;
+
+        }
+    }
+
+</script>

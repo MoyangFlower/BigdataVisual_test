@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<p>
+    <label for="hobby">筛选条件：
+        <input type="button" name="selectAll" value="全选" onclick="selectAllItem()" />  
+        <input type="button" name="deleteAll" value="全不选" onclick="deleteAllItem()" />  
+        <input type="button" name="selectOther" value="反选" onclick="selectOtherItem()" />
+        <input type="checkbox" name="hobby" value="2" />形变  
+        <input type="checkbox" name="hobby" value="3" />地电地磁  
+        <input type="checkbox" name="hobby" value="4" />地下流体  
+        <input type="checkbox" name="hobby" value="9" />辅助流体  
+        <input type="button" value="确认重选" onclick="SelectedItem()" />
+    </label>
+</p>
+</body>
+</html>
+<script>
+    function SelectedItem(){
+        var hobbies = document.getElementsByName("hobby");
+        var value;
+        for (i=0; i<hobbies.length; i++){
+            if (hobbies[i].checked){
+                if (!value){
+                    value = hobbies[i].value;
+                } else {
+                    value += "," + hobbies[i].value;
+                }
+            }
+        }
+
+        alert(value == undefined ? '' : value);
+    }
+
+    function isSelectAll(){
+        var hobbies = document.getElementsByName("hobby");
+        for (i=0; i<hobbies.length; i++){
+            if (!hobbies[i].checked){
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    function selectAllItem(){
+        var hobbies = document.getElementsByName("hobby");
+        if (isSelectAll()){
+            for (i=0; i<hobbies.length; i++){
+                hobbies[i].checked = false;
+            }
+        } else {
+            for (i=0; i<hobbies.length; i++){
+                hobbies[i].checked = true;
+            }
+        }
+    }
+
+    function deleteAllItem() {
+        var hobbies = document.getElementsByName("hobby");
+        for (i = 0; i<hobbies.length; i++){
+            hobbies[i].checked = false;
+        }
+    }
+
+    function selectOtherItem(){
+        var hobbies = document.getElementsByName("hobby");
+        for (i=0; i<hobbies.length; i++){
+            if (hobbies[i].checked){
+                hobbies[i].checked = false;
+            } else {
+                hobbies[i].checked = true;
+            }
+        }
+    }
+</script>

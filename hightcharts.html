@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<div id="container"></div>
+</body>
+</html>
+<script type="text/javascript" src="js/jquery.js"></script>
+<script type="text/javascript" src="js/highcharts.js"></script>
+<script type="text/javascript" src="js/highcharts-more.js"></script>
+<script>
+    var data ={
+        "CF509" : [5000,4800,4900,5100,4600,4780],
+        "CF506" : [5200,4500,4600,5400,4300,4680],
+        "CF609" : [5400,4700,4500,4800,4500,4980]
+    }
+    $(function () {
+        for(var temp in data){
+            var div = $('<div style=" width:20%, height:10%"></div>');
+            $('#container').append(div);
+            div.highcharts({
+                title: {
+                    text: '对数折线图'
+                },
+                xAxis: {
+                    tickInterval: 1
+                },
+                yAxis: {
+                    type: 'logarithmic',
+                    minorTickInterval: 0.1
+                },
+                tooltip: {
+                    headerFormat: '<b>{series.name}</b><br />',
+                    pointFormat: 'x = {point.x}, y = {point.y}'
+                },
+                series: [{
+                    name:temp,
+                    data: data[temp],
+                    pointStart: 1
+                }]
+            })
+        };
+    });
+</script>
