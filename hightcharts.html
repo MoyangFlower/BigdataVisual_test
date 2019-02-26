@@ -3,45 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <title>Title</title>
+    <style type="text/css">
+        html{height: 100%}
+        body{height: 100%}
+        #container{
+            height: auto;
+            width: 60%;
+            margin-left: 20%;
+        }
+    </style>
 </head>
 <body>
 <div id="container"></div>
+<div id="dragstatus"></div>
 </body>
 </html>
 <script type="text/javascript" src="js/jquery.js"></script>
-<script type="text/javascript" src="js/highcharts.js"></script>
+<!--<script type="text/javascript" src="js/highcharts.js"></script>-->
 <script type="text/javascript" src="js/highcharts-more.js"></script>
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/xrange.js"></script>
+<script src="https://code.highcharts.com/modules/draggable-points.js"></script>
 <script>
-    var data ={
-        "CF509" : [5000,4800,4900,5100,4600,4780],
-        "CF506" : [5200,4500,4600,5400,4300,4680],
-        "CF609" : [5400,4700,4500,4800,4500,4980]
+    /**
+     * 为了让多个图表的提示框即十字准星线能够联动，这里绑定多个图表的附件 dom 的鼠标事件进行联动
+     */
+    var setDragStatus = function (status) {
+        document.getElementById('dragstatus').innerHTML = status;
+    };
+
+    $('#container').bind('mousemove touchmove touchstart', function (e) {
+        var chart,
+            point,
+            i,
+            event;
+        for (i = 0; i < Highcharts.charts.length; i = i + 1) {
+            chart = Highcharts.charts[i];
+            event = chart.pointer.normalize(e.originalEvent); // Find coordinates within the chart
+            point = chart.series[0].searchPoint(event, true); // Get the hovered point
+            if (point) {
+                point.highlight(e);
+            }
+        }
+    });
+    /**
+     * 重写内部的方法， 这里是将提示框即十字准星的隐藏函数关闭
+     */
+    Highcharts.Pointer.prototype.reset = function () {
+        return undefined;
+    };
+    /**
+     * 高亮当前的数据点，并设置鼠标滑动状态及绘制十字准星线
+     */
+    Highcharts.Point.prototype.highlight = function (event) {
+        this.onMouseOver(); // 显示鼠标激活标识
+        this.series.chart.tooltip.refresh(this); // 显示提示框
+        this.series.chart.xAxis[0].drawCrosshair(event, this); // 显示十字准星线
+    };
+
+    /**
+     * 同步缩放效果，即当一个图表进行了缩放效果，其他图表也进行缩放
+     */
+    function syncExtremes(e) {
+        var thisChart = this.chart;
+        if (e.trigger !== 'syncExtremes') {
+            Highcharts.each(Highcharts.charts, function (chart) {
+                if (chart !== thisChart) {
+                    if (chart.xAxis[0].setExtremes) {
+                        chart.xAxis[0].setExtremes(e.min, e.max, undefined, false, { trigger: 'syncExtremes' });
+                    }
+                }
+            });
+        }
     }
-    $(function () {
-        for(var temp in data){
-            var div = $('<div style=" width:20%, height:10%"></div>');
+
+    $.getJSON('data/activity.json', function (activity) {
+        $.each(activity.datasets, function (i, dataset){
+            dataset.data = Highcharts.map(dataset.data, function (val, j) {
+                return [activity.xData[j], val];
+            });
+            var div = $('<div class="chart" id="chart"><br /><br/></div>');
             $('#container').append(div);
             div.highcharts({
                 title: {
-                    text: '对数折线图'
+                    text: dataset.name,
+                    align: 'center',
+                    margin: 0,
+                },
+                credits:{
+                    enabled : false
+                },
+                legend: {
+                    enabled: false
+                },
+                chart: {
+                    type:"line",
+
+                    /*events: {
+                        click: function (event) {
+                            var label = this.renderer.label(
+                                'x: ' + Highcharts.numberFormat(event.xAxis[0].value, 2) + ', y: ' + Highcharts.numberFormat(event.yAxis[0].value, 2),
+                                event.xAxis[0].axis.toPixels(event.xAxis[0].value),
+                                event.yAxis[0].axis.toPixels(event.yAxis[0].value)
+                            )
+                                .attr({
+                                    fill: Highcharts.getOptions().colors[0],
+                                    padding: 10,
+                                    r: 5,
+                                    zIndex: 8
+                                })
+                                .css({
+                                    color: '#FFFFFF'
+                                })
+                                .add();
+                            setTimeout(function () {
+                                label.fadeOut();
+                            }, 1000);
+                        }
+                    }*/
                 },
                 xAxis: {
-                    tickInterval: 1
+                    crosshair: true,
+                    tickInterval: 1, //坐标间隔
+                    labels: {
+                        format: '{value} km'
+                    },
+                    events: {
+                        setExtremes: syncExtremes
+                    },
                 },
                 yAxis: {
-                    type: 'logarithmic',
+                    title: {
+                        text: null
+                    },
                     minorTickInterval: 0.1
                 },
+                plotOptions: {
+                    series: {
+                        minPointLength: 5, // Always show points, even when resized down
+                        dataLabels: {
+                            // enabled: true,
+                            // format: '{point.name}'
+                        },
+                    }
+                },
+
                 tooltip: {
-                    headerFormat: '<b>{series.name}</b><br />',
-                    pointFormat: 'x = {point.x}, y = {point.y}'
+                    // headerFormat: '<b>{series.name}</b><br />',
+                    //pointFormat: 'x = {point.x}, y = {point.y}'
+                    positioner: function () {
+                        return {
+                            x: this.chart.chartWidth - this.label.width, // right aligned
+                            y: -1 // align to title
+                        };
+                    },
+                    borderWidth: 0,
+                    backgroundColor: 'none',
+                    pointFormat: '{point.y}',
+                    headerFormat: '',
+                    shadow: false,
+                    style: {
+                        fontSize: '18px'
+                    },
+                    valueDecimals: dataset.valueDecimals
                 },
                 series: [{
-                    name:temp,
-                    data: data[temp],
-                    pointStart: 1
+                    data: dataset.data,
+                    name: dataset.name,
+                    pointStart: 1,
+                    cursor: 'line',
+                    color: Highcharts.getOptions().colors[i],
+                    fillOpacity: 0.3,
+                    tooltip: {
+                        valueSuffix: ' ' + dataset.unit
+                    }
+
                 }]
-            })
-        };
-    });
+            });
+        })
+    })
 </script>

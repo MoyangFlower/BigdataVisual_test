@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>highstock</title>
+</head>
+<body>
+<div id="container" style="height: 400px; min-width: 600px; max-width: 800px; margin: 0 auto"></div>
+</body>
+</html>
+<script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+<script src="https://code.highcharts.com/stock/highstock.js"></script>
+<script src="https://code.highcharts.com/stock/modules/exporting.js"></script>
+<script type="text/javascript" src="https://www.highcharts.com/samples/data/usdeur.js"></script>
+<script type="text/javascript" src="data/usdeur.js"></script>
+
+<script>
+
+    // string格式转换成日期date数据
+    function dateadd(sdate, delta, ymdh){
+        if(!sdate ) return;
+
+        if(typeof sdate == 'object') sdate = sdate.toLocaleString();
+
+        /(\d{4})[\D](\d{1,2})[\D](\d{1,2})[\D]?\s(\d{1,2}):(\d{1,2}):(\d{1,2})/.exec(sdate);
+        var a = [0,0,0,0];
+
+        switch(ymdh){
+            case 'y':
+                a = [delta, -1, 0, 0];
+                break;
+            case 'm':
+                a=[0, delta-1, 0, 0];
+                break;
+            case 'H':
+                a=[0, -1, 0, delta];
+                break;
+            default:
+                a = [0, -1, delta, 0];
+                break;
+        }
+
+        //console.log('date:' + (parseInt(RegExp.$1)+ a[0]) + '-'+ (parseInt(RegExp.$2)+a[1]) +'-' + (parseInt(RegExp.$3)+a[2]) + ' ' + (parseInt(RegExp.$4)+a[3]) +':' + RegExp.$5 + ':' +RegExp.$6);
+
+        return new Date(parseInt(RegExp.$1)+ a[0], parseInt(RegExp.$2)+a[1], parseInt(RegExp.$3)+a[2], parseInt(RegExp.$4)+a[3], RegExp.$5,RegExp.$6);
+    }
+
+
+
+
+
+    /**
+     * Load new data depending on the selected min and max
+     */
+    function afterSetExtremes(e) {
+        /*$.getJSON('https://www.highcharts.com/samples/data/from-sql.php?start=' + Math.round(e.min) +
+            '&end=' + Math.round(e.max) + '&callback=?', function (data) {
+        for (var x=0; x<3;x++) {
+            var chart = Highcharts.charts[x];
+
+            chart.showLoading('Loading data from server...');
+
+                chart.series[0].setData(data);
+                chart.hideLoading();
+
+            }
+        })*/
+
+        console.log("event")
+    }
+
+
+    $.ajax({
+        type: "get",
+        url:"data/ou2_4212_hour.txt",
+        dataType:"text",
+        async:true,
+        success:function (data) {
+            data = data.split("\n")
+            var hour_data =[]
+
+            // 将查询返回的数据转换成适应表格的数据，[UTC,value]
+            $.each(data,function (i,item) {
+                var sdate =item.split(",")[0] +":00:00.0"
+                var dd = dateadd(sdate,0);
+                var row_value = parseFloat(item.split(",")[1])
+                var row_date =Date.UTC(dd.getUTCFullYear(),dd.getUTCMonth(),dd.getUTCDate(),dd.getUTCHours())
+                hour_data.push([row_date,row_value])
+            })
+            for (var flag =0; flag<3;flag++) {
+            // Add a null value for the end date
+
+                data = [].concat(data, [[Date.UTC(2011, 9, 14, 19, 59), null, null, null, null]]);
+
+                var chart_flag = "chart" + flag
+                var div = $('<div class="chart" id=' + chart_flag + '><br /><br/></div>');
+                $('#container').append(div);
+                Highcharts.stockChart(chart_flag, {
+
+                    title: {
+                        text: "测试多联表",
+                        align: 'center',
+                        margin: 0,
+                    },
+                    credits: {
+                        enabled: false
+                    },
+                    yAxis: {
+                        opposite: false
+                    },
+                    xAxis:{
+                        events: {
+                            afterSetExtremes: afterSetExtremes
+                        },
+                    },
+                    navigator: {
+                        adaptToUpdatedData: false,
+                        series: {
+                            data: hour_data
+                        }
+                    },
+                    scrollbar: {
+                        enabled: true,
+                        liveRedraw: false
+                    },
+                    rangeSelector: {
+                        buttons: [{
+                            type: 'hour',
+                            count: 1,
+                            text: '1h'
+                        }, {
+                            type: 'day',
+                            count: 1,
+                            text: '1d'
+                        }, {
+                            type: 'month',
+                            count: 1,
+                            text: '1m'
+                        }, {
+                            type: 'year',
+                            count: 1,
+                            text: '1y'
+                        }, {
+                            type: 'all',
+                            text: 'All'
+                        }],
+                        inputEnabled: true, // it supports only days
+                        selected: 4 // all
+                    },
+
+                    series: [{
+                        name: ' ',
+                        data: hour_data
+                    }]
+                });
+            }
+        }
+    })
+
+</script>
