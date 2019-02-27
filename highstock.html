@@ -12,7 +12,10 @@
 <script src="https://code.highcharts.com/stock/highstock.js"></script>
 <script src="https://code.highcharts.com/stock/modules/exporting.js"></script>
 <script type="text/javascript" src="https://www.highcharts.com/samples/data/usdeur.js"></script>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 <script type="text/javascript" src="data/usdeur.js"></script>
+
+<link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/base/jquery-ui.css" rel="stylesheet" />
 
 <script>
 
@@ -66,9 +69,21 @@
             }
         })*/
 
-        console.log("event")
+        //console.log("event")
     }
 
+    function syncExtremes(e){
+        var thisChart = this.chart;
+        if (e.trigger !== 'syncExtremes') {
+            Highcharts.each(Highcharts.charts, function (chart) {
+                if (chart !== thisChart) {
+                    if (chart.xAxis[0].setExtremes) {
+                        chart.xAxis[0].setExtremes(e.min, e.max, true, false, { trigger: 'syncExtremes' });
+                    }
+                }
+            });
+        }
+    }
 
     $.ajax({
         type: "get",
@@ -81,7 +96,7 @@
 
             // 将查询返回的数据转换成适应表格的数据，[UTC,value]
             $.each(data,function (i,item) {
-                var sdate =item.split(",")[0] +":00:00.0"
+                var sdate =item.split(",")[0] +":00:00.0"  //"2013-01-01 00:00:00.0"
                 var dd = dateadd(sdate,0);
                 var row_value = parseFloat(item.split(",")[1])
                 var row_date =Date.UTC(dd.getUTCFullYear(),dd.getUTCMonth(),dd.getUTCDate(),dd.getUTCHours())
@@ -110,7 +125,8 @@
                     },
                     xAxis:{
                         events: {
-                            afterSetExtremes: afterSetExtremes
+                            afterSetExtremes: afterSetExtremes,
+                            setExtremes:syncExtremes,
                         },
                     },
                     navigator: {
@@ -120,7 +136,7 @@
                         }
                     },
                     scrollbar: {
-                        enabled: true,
+                        enabled: false,
                         liveRedraw: false
                     },
                     rangeSelector: {
@@ -152,9 +168,25 @@
                         name: ' ',
                         data: hour_data
                     }]
+                }, function (chart) {
+
+                // apply the date pickers
+                    setTimeout(function () {
+                    $('input.highcharts-range-selector', $(chart.container).parent())
+                        .datepicker();
+                    }, 0);
                 });
             }
         }
     })
+
+    // Set the datepicker's date format
+    $.datepicker.setDefaults({
+        dateFormat: 'yy-mm-dd',
+        onSelect: function () {
+            this.onchange();
+            this.onblur();
+        }
+    });
 
 </script>
